@@ -47,13 +47,13 @@ function convertShoppingEventToFptiInput(
 export const eventToFptiConverters = (config : Config) => {
   return {
     viewPageToFpti: (viewData : PageView) : FptiInput => {
-      return convertShoppingEventToFptiInput(config, viewData, 'pageView');
+      return convertShoppingEventToFptiInput(config, viewData, 'page_view');
     },
     viewProductToFpti: (viewData : ProductView) : FptiInput => {
       viewData.currency = viewData.currency
         ? viewData.currency
         : config.currencyCode;
-      return convertShoppingEventToFptiInput(config, viewData, 'productView');
+      return convertShoppingEventToFptiInput(config, viewData, 'product_view');
     },
     eventToFpti: (event : EventType, payload : Object) : FptiInput => {
       return convertShoppingEventToFptiInput(config, payload, event);

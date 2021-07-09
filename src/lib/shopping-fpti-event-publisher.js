@@ -1,7 +1,7 @@
 /* @flow */
 import type { FptiInput, Config, ContainerSummary } from '../types';
 
-import { trackFpti } from './shopping-fpti';
+import { fptiClientInit } from './shopping-fpti';
 import { fetchContainerSettings } from './get-property-id';
 import { logger } from './logger';
 
@@ -17,6 +17,7 @@ import { logger } from './logger';
 export const ShoppingEventPublisher = (config : Config) => {
   const fptiEventsQueue = [];
   const queue_limit = 100;
+  const fptiClient = fptiClientInit(config);
 
   /**
    * The FPTI event may only be published if merchant XO container is setup and fetched from tagmanager service.
@@ -52,7 +53,7 @@ export const ShoppingEventPublisher = (config : Config) => {
    */
   function publishFptiEvent(fptiEvent : FptiInput) {
     if (isAllowedToPublishEvent()) {
-      trackFpti(config, fptiEvent);
+      fptiClient.trackFpti(fptiEvent);
     } else {
       enqueueFptiEvent(fptiEvent);
     }
@@ -70,6 +71,7 @@ export const ShoppingEventPublisher = (config : Config) => {
       config.propertyId =
         config.propertyId || (containerSummary && containerSummary.id);
       config.containerSummary = containerSummary;
+      // console.log(`------   ${ JSON.stringify(config) }`);
       processFptiEventsQueue();
     }
 

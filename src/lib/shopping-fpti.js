@@ -100,13 +100,81 @@ export const resolveTrackingVariables = (data : any) : FptiVariables => ({
 
   merchant_cart_id: data.cartId,
 
-  product: 'ppshopping_v2'
+  product: 'ppshopping_v2',
+
+  es: data.es,
+
+  fltp: data.fltp,
+
+  offer_id: data.offer_id
 });
 
+function eventEnricherInit(config : Config) : Object {
+  function readOfferProgramId() : ?string {
+    if (config.containerSummary) {
+      return config.containerSummary.programId;
+    } else {
+      return null;
+    }
+  }
 
-export const trackFpti = (config : Config, data : FptiInput) => {
+  function enrichPageViewEvent() : Object {
+    const offerId = readOfferProgramId();
+    if (offerId) {
+      return {
+        es: 'visitorInfoFlowStarted',
+        fltp: 'store-cash',
+        offer_id: offerId
+      };
+    }
+    return {};
+  }
+
+  function enrichPurchaseEvent() : Object {
+    return {
+      fltp: 'analytics',
+      es: 'txnSuccess'
+    };
+  }
+
+  function enrichStoreCashExcusionEvent() : Object {
+    return {
+      fltp: 'analytics',
+      es: 'merchantRecognizedUser'
+    };
+  }
+  const eventMap = {
+    page_view: enrichPageViewEvent,
+    purchase: enrichPurchaseEvent,
+    store_cash_exclusion: enrichStoreCashExcusionEvent
+  };
+
+  function getEventSpecificFptiData(payload : FptiInput) : Object {
+    const event = payload.eventName;
+    return  eventMap[event] ? eventMap[event](event, payload) : {};
+  }
+
+  return {
+    enrichFptiInput(data : FptiInput) : Object {
+      const enrichedWithCommonContextualData = resolveTrackingData(config, data, 'ppshopping_v2', 'ppshoppingsdk_v2');
+      const eventSpecificFptiData = getEventSpecificFptiData(data);
+      return { ...enrichedWithCommonContextualData, ...eventSpecificFptiData };
+    }
+  };
+}
+
+
+export const fptiClientInit = (config : Config) => {
   const fptiServer = 'https://t.paypal.com/ts';
-  const trackingVariables = resolveTrackingVariables(resolveTrackingData(config, data, 'ppshopping_v2', 'ppshoppingsdk_v2'));
-
-  sendBeacon(fptiServer, filterFalsyValues(trackingVariables));
+  const eventEnricher = eventEnricherInit(config);
+  
+  const trackFpti = (data : FptiInput) => {
+    const enrichedInput = eventEnricher.enrichFptiInput(data);
+    const trackingVariables = resolveTrackingVariables(enrichedInput);
+    sendBeacon(fptiServer, filterFalsyValues(trackingVariables));
+  };
+  
+  return {
+    trackFpti: trackFpti
+  };
 };
